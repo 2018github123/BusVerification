@@ -66,14 +66,17 @@ module test_top ;
         begin
             xtal1_in = xtal1 | nxtal1_enable;
         end  
-        
+    always @(posedge xtal1_in) 
+      begin 
+            nxtal1_in = ~xtal1_in;
+      end 
     // ====start task case ====
     initial
         begin
             reset_test();
             transmit_test();
-           /* reset_test();
-            receive_test(); */        
+            synchronization_test();
+            receive_test();        
         end
 
     // ==== simulate finish ====
@@ -86,9 +89,8 @@ module test_top ;
     task reset_test;
         begin
             $display("Task hardware reset_test ==> ");
-            $display("tx0 is %b",tx0);
-            $display("rx0 is %b",rx0);
             nrst = 1'b0 ;         
+            rx0 = 1'b1;
             write_register(8'h1F,`CDR_R);      // Clock Divider
             write_register(8'h08,`OCR_R);      // Output Control
             write_register(8'h04,`RIE_R);      // Interrupt disable
@@ -114,16 +116,17 @@ module test_top ;
     task transmit_test;
         begin
             $display("Task transmit_test ==>");
-            $display("nrst is %b",nrst);
             write_register(8'h06,8'h44);   // mod.0 = 1 reset mode , set bus timing patameter
             write_register(8'h07,8'h1C);                        
             write_register(8'h00,8'h00);  // mod.0 = 0 operator mode
-            $display("tx0 is %b",tx0);
+
             $display("check SR register:");
-            read_register(8'h02);$display("SR is 0x%h",rdata);  //SR
-             $display("SR[2] is %b",rdata[2]);           
-           // wait(rdata[2] != 1'b1) $display("SR = %b transmit buffer full,waiting_release",rdata[2]); 
-            wait(rdata[2] == 1'b1) $display("SR = %b transmit buffer released",rdata[2]);          
+            read_register(8'h02);  //SR          
+            while(rdata[2] != 1'b1)
+              begin
+                  read_register(8'h02);$display("SR is 0x%h",rdata);  //SR
+              end
+            $display("SR = %b transmit buffer released",rdata[2]);      
             /* send data to transmit buffer*/
             $display("===========cpu_write_data start============");
             write_register(8'h10,8'h08); // SFF
@@ -141,24 +144,22 @@ module test_top ;
             repeat(5)@(posedge xtal1_in);          
             // locks transit buffer SR.2 = 0
             // set cmr.0 = 1
-            $display("tx0 is %b",tx0);
-            $display("Transimit Request:");
+            // $display("tx0 is %b",tx0);
+            // $display("Transimit Request:");
             write_register(8'h01,8'h01);   // transmit
-            $display("tx0 is %b",tx0);
+            // $display("tx0 is %b",tx0);
             wait(tx0 == 1'b0) $display("tx0 = 0, start to transmit data");           
             
             read_register(8'h02);            
             //transmit interrupt or SR.2 = 1            
             //can transmit data include 15 bit of CRC
             // set SR.2= 1
-            $display("SR[2] is %b",rdata[2]);
+            // $display("SR[2] is %b",rdata[2]);
             while(rdata[2] != 1'b1) 
                 begin   
                     read_register(8'h02);                  
-                    $display(" Time now is :%t ; tx0 : %b",$time,tx0);
+                    //$display(" Time now is :%t ; tx0 : %b",$time,tx0);
                 end
-         
-      
             $display("<==========transmit_test end============");
         end
     endtask
@@ -167,21 +168,44 @@ module test_top ;
     task receive_test;
         begin
             $display("============receive_test start============");
-            write_register(8'h06,8'h44);   // mod.0 = 1 reset mode , set bus timing patameter
+            $display("rx0 = %b",rx0);
+            write_register(8'h00,8'h01);
+            //rx0 = 1'b1;
+            //write_register(8'h04,8'h81);
+            //write_register(8'h06,8'h44);   // mod.0 = 1 reset mode , set bus timing patameter
             write_register(8'h07,8'h1C);    
-            write_register(8'h00,8'h00);   // mod.0 = 0 operator mode
-            //repeat(BRP)@(posedge xtal1);  
-            nxtal1_in = ~xtal1_in; 
+            write_register(8'h10,`ACR0);       //ACR 0--3
+            write_register(8'h11,`ACR1);
+            write_register(8'h12,`ACR2);
+            write_register(8'h13,`ACR3);
+            write_register(8'h14,`AMR0);      //AMR 0--3
+            write_register(8'h15,`AMR1);
+            write_register(8'h16,`AMR2);
+            write_register(8'h17,`AMR3);
+
+            write_register(8'h00,`CAN_MODE_OPERATOR);   // mod.0 = 0 operator mode
+            
+            repeat(BRP)@(posedge xtal1_in);
+
+            repeat(11)receive_bit(1);      //set bus free
+
+            hard_synchronization();
 
             //read 3 bytes  by rx0 
             $display("============read data from rx0============ >");
             receive_SFF_data();
             $display("< ============read data from rx0============");
             //check if receive successfully: SR.0 = 1 or receive interrupt generated
+            
             read_register(8'h02);
-            wait(rdata[0]!=1) $display("receiving......");
-            wait(rdata[1]==1) $display("receive buffer is full && available to be read");
-                      
+            //$display("SR[0] = %b",rdata[0]);
+            // while(rdata[0] != 1)
+            //     begin
+            //         read_register(8'h02);                  
+            //     end
+            //  $display("Time now:%t ; SR[0] = %b",$time,rdata[0]);
+             
+        
             //read buffer 10h - 1ch
             $display("======= cpu_read data start ====>");
             read_register(8'h60);$display("data : %h",rdata);
@@ -198,6 +222,7 @@ module test_top ;
              $display("<======= cpu_read data end ====");
             //release buffer
             write_register(8'h01,8'h04);            
+           
             $display("============receive_test end============");
         end
     endtask 
@@ -224,9 +249,10 @@ module test_top ;
     
    task receive_bit;
         input sbit;
-        begin
+        begin            
             #1 rx0 = sbit;
             repeat((`CAN_TIMING1_TSEG1 + `CAN_TIMING1_TSEG2 + 3)*BRP)@(posedge xtal1_in);
+            //repeat(BRP)@(posedge xtal1_in);
         end
    endtask
    
@@ -251,40 +277,46 @@ module test_top ;
               $display("receive SFF data ===>");
               receive_bit(0);  // SOF
               receive_bit(0);  // ID
-              receive_bit(1);  // ID
+              receive_bit(0);  // ID
+              receive_bit(0);  // ID
+              receive_bit(0);  // ID
+              receive_bit(0);  // ID
               receive_bit(0);  // ID
               receive_bit(1);  // ID
               receive_bit(0);  // ID
               receive_bit(1);  // ID
               receive_bit(0);  // ID
-              receive_bit(1);  // ID
               receive_bit(0);  // ID
-              receive_bit(1);  // ID
-              receive_bit(0);  // ID
-              receive_bit(1);  // RTR
+              receive_bit(0);  // RTR
               receive_bit(0);  // IDE
               receive_bit(0);  // r0
               receive_bit(0);  // DLC
+              receive_bit(0);  // DLC
+              receive_bit(0);  // DLC
               receive_bit(1);  // DLC
-              receive_bit(1);  // DLC
-              receive_bit(1);  // DLC
-              receive_bit(1);  // CRC
-              receive_bit(1);  // CRC
-              receive_bit(0);  // CRC stuff
-              receive_bit(0);  // CRC 6
-              receive_bit(0);  // CRC
-              receive_bit(0);  // CRC
-              receive_bit(0);  // CRC
-              receive_bit(1);  // CRC  stuff
-              receive_bit(0);  // CRC 0
+              receive_bit(0);  // DATA7
+              receive_bit(0);  // DATA6
+              receive_bit(0);  // DATA5
+              receive_bit(0);  // DATA4
+              receive_bit(0);  // DATA3
+              receive_bit(0);  // DATA2
+              receive_bit(0);  // DATA1
+              receive_bit(1);  // DATA0
               receive_bit(0);  // CRC
               receive_bit(1);  // CRC
               receive_bit(0);  // CRC
-              receive_bit(1);  // CRC 5
-              receive_bit(1);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
               receive_bit(0);  // CRC
               receive_bit(1);  // CRC
-              receive_bit(1);  // CRC b
+              receive_bit(1);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
+              receive_bit(0);  // CRC
               receive_bit(1);  // CRC DELIM
               receive_bit(0);  // ACK
               receive_bit(1);  // ACK DELIM
@@ -298,7 +330,7 @@ module test_top ;
               receive_bit(1);  // INTER
               receive_bit(1);  // INTER
               receive_bit(1);  // INTER
-             $display("<====receive SFF data");
+              $display("<====receive SFF data");
         end 
    endtask
    
@@ -376,6 +408,33 @@ module test_top ;
               $display("<=== send EFF data");
         end 
    endtask
+
+   task hard_synchronization;
+      begin
+          #1 rx0 = 0;
+          repeat (4*BRP) @ (posedge xtal1_in);
+          #1 rx0=1;
+          repeat (4*BRP) @ (posedge xtal1_in);
+      end
+   endtask 
+
+   task re_synchronization;
+      begin
+          #1 rx0 = 0;
+          repeat(10*BRP)@(posedge xtal1_in);
+          #1 rx0 = 1;
+          repeat(10*BRP)@(posedge xtal1_in);
+      end
+   endtask 
+
+   task synchronization_test;
+      begin
+          hard_synchronization();
+          re_synchronization();
+      end
+   endtask 
+
+
      
     // endtask ////////////////////////////////////////////////////////////////////////////
 endmodule

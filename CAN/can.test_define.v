@@ -49,19 +49,28 @@
 
 //==========simulation time ==============
 
-`define CAN_SIMU_TIME   500000000     
+`define CAN_SIMU_TIME   50000000    
 
 //===========MODE==================
 
-`define CAN_MODE_RESET  8'h01
-`define CAN_MODE_OPERATOR 8'h00
+`define CAN_MODE_RESET      8'h01
+`define CAN_MODE_OPERATOR   8'h00
 
 //=======TRANSMIT FRAME=======
 
 `define EFF  1'b1
 `define SFF  1'b0
 
-
+//=======ACR0-3==============
+`define  ACR0  8'h02
+`define  ACR1  8'h80
+`define  ACR2  8'h02
+`define  ACR3  8'h81
+//=======AMR0-3==============
+`define  AMR0  8'h00
+`define  AMR1  8'h0F
+`define  AMR2  8'h00
+`define  AMR3  8'h0F
 
 
 
