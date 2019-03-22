@@ -168,7 +168,7 @@ module test_top ;
             while(rdata[2] != 1'b1) 
                 begin   
                     read_register(8'h02);                  
-                    //$display(" Time now is :%t ; tx0 : %b",$time,tx0);
+                    $display("waiting: tx0 : %b",tx0);
                 end
             $display("<==========transmit_test end============");
         end
@@ -212,34 +212,48 @@ module test_top ;
             
             $display("< ============read data from rx0============");
             
+            repeat(10*BRP)@(posedge xtal1_in) ;
             //check if receive successfully: SR.0 = 1 or receive interrupt generated
             
-           // read_register(8'h02);
+            read_register(8'h02);
             //$display("SR[0] = %b",rdata[0]);
-            // while(rdata[0] != 1)
-            //     begin
-            //         read_register(8'h02);                  
-            //     end
-            //  $display("Time now:%t ; SR[0] = %b",$time,rdata[0]);
+            while(rdata[0] != 1)
+                begin
+                    read_register(8'h02);                  
+                end
+             $display("Time now:%t ; SR[0] = %b",$time,rdata[0]);
              
         
             //read buffer 10h - 1ch
             
             $display("======= cpu_read data start ====>");
-            read_register(8'h60);$display("data : %h",rdata);
-            read_register(8'h61);$display("data : %h",rdata);
-            read_register(8'h62);$display("data : %h",rdata);
-            read_register(8'h63);$display("data : %h",rdata);
-            read_register(8'h64);$display("data : %h",rdata);
-            read_register(8'h65);$display("data : %h",rdata);
-            read_register(8'h66);$display("data : %h",rdata);
-            read_register(8'h67);$display("data : %h",rdata);
-            read_register(8'h68);$display("data : %h",rdata);
-            read_register(8'h69);$display("data : %h",rdata);
-            read_register(8'h6A);$display("data : %h",rdata);
+            // read_register(8'h60);$display("data : %h",rdata);
+            // read_register(8'h61);$display("data : %h",rdata);
+            // read_register(8'h62);$display("data : %h",rdata);
+            // read_register(8'h63);$display("data : %h",rdata);
+            // read_register(8'h64);$display("data : %h",rdata);
+            // read_register(8'h65);$display("data : %h",rdata);
+            // read_register(8'h66);$display("data : %h",rdata);
+            // read_register(8'h67);$display("data : %h",rdata);
+            // read_register(8'h68);$display("data : %h",rdata);
+            // read_register(8'h69);$display("data : %h",rdata);
+            // read_register(8'h6A);$display("data : %h",rdata);
+
+            //
+            read_register(8'h10);$display("data : %h",rdata);
+            read_register(8'h11);$display("data : %h",rdata);
+            read_register(8'h12);$display("data : %h",rdata);
+            read_register(8'h13);$display("data : %h",rdata);
+            read_register(8'h14);$display("data : %h",rdata);
+            read_register(8'h15);$display("data : %h",rdata);
+            read_register(8'h16);$display("data : %h",rdata);
+            read_register(8'h17);$display("data : %h",rdata);
+            read_register(8'h18);$display("data : %h",rdata);
+            read_register(8'h19);$display("data : %h",rdata);
+            read_register(8'h1A);$display("data : %h",rdata);
              $display("<======= cpu_read data end ====");
             //release buffer
-           // write_register(8'h01,8'h04);                      
+            write_register(8'h01,8'h04);                      
             $display("============receive_test end============");
         end
     endtask 
@@ -268,7 +282,7 @@ module test_top ;
         input sbit;
         begin            
             #1 rx0 = sbit;
-            $display("receive_bit  rx0 is %b",rx0);
+           // $display("receive_bit  rx0 is %b",rx0);
             repeat((`CAN_TIMING1_TSEG1 + `CAN_TIMING1_TSEG2 + 3)*BRP)@(posedge xtal1_in);
            
         end
@@ -327,6 +341,7 @@ module test_top ;
               receive_bit(0);  // ID9
               receive_bit(0);  // ID8
               receive_bit(0);  // ID7
+              receive_bit(1);  // stuff bit
               receive_bit(0);  // ID6
               receive_bit(0);  // ID5
               receive_bit(1);  // ID4
@@ -337,6 +352,7 @@ module test_top ;
               receive_bit(0);  // RTR
               receive_bit(0);  // IDE
               receive_bit(0);  // r0
+              receive_bit(1);  // stuff bit
               receive_bit(0);  // DLC
               receive_bit(0);  // DLC
               receive_bit(0);  // DLC
@@ -346,24 +362,27 @@ module test_top ;
               receive_bit(0);  // DATA5
               receive_bit(0);  // DATA4
               receive_bit(0);  // DATA3
+              receive_bit(1);  // stuff bit
               receive_bit(0);  // DATA2
               receive_bit(0);  // DATA1
               receive_bit(1);  // DATA0
-              receive_bit(0);  // CRC14
+
+              receive_bit(1);  // CRC14
               receive_bit(1);  // CRC13
-              receive_bit(0);  // CRC12
+              receive_bit(1);  // CRC12
               receive_bit(0);  // CRC11
-              receive_bit(0);  // CRC10
-              receive_bit(0);  // CRC9
+              receive_bit(1);  // CRC10
+              receive_bit(1);  // CRC9
               receive_bit(1);  // CRC8
-              receive_bit(1);  // CRC7
-              receive_bit(0);  // CRC6
+              receive_bit(0);  // CRC7
+              receive_bit(1);  // CRC6
               receive_bit(0);  // CRC5
-              receive_bit(0);  // CRC4
+              receive_bit(1);  // CRC4
               receive_bit(0);  // CRC3
               receive_bit(0);  // CRC2
-              receive_bit(0);  // CRC1
-              receive_bit(0);  // CRC0
+              receive_bit(1);  // CRC1
+              receive_bit(1);  // CRC0
+
               receive_bit(1);  // CRC DELIM
               receive_bit(0);  // ACK
               receive_bit(1);  // ACK DELIM
@@ -374,6 +393,9 @@ module test_top ;
               receive_bit(1);  // EOF
               receive_bit(1);  // EOF
               receive_bit(1);  // EOF
+              receive_bit(1);
+              receive_bit(1);
+              receive_bit(1);
               $display("<====receive SFF data");
         end 
    endtask
