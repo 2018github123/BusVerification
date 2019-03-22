@@ -49,7 +49,7 @@
 
 //==========simulation time ==============
 
-`define CAN_SIMU_TIME   50000000    
+`define CAN_SIMU_TIME   5000000
 
 //===========MODE==================
 
